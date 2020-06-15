@@ -1,0 +1,44 @@
+*filter
+
+# base
+:INPUT DROP [0:0]
+:FORWARD DROP [0:0]
+:OUTPUT ACCEPT [141246:63462268]
+
+# ignore loopback
+-A INPUT -i lo -j ACCEPT
+
+# allow established
+-A INPUT -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+
+# drop invalid packets
+-A INPUT -m conntrack --ctstate INVALID -j DROP
+
+# block spoofed loopback
+-A INPUT -s 127.0.0.0/8 ! -i lo -j DROP
+
+# drop * cast packets
+-A INPUT -m addrtype --dst-type BROADCAST -j DROP
+-A INPUT -m addrtype --dst-type MULTICAST -j DROP
+-A INPUT -m addrtype --dst-type ANYCAST -j DROP
+-A INPUT -d 224.0.0.0/4 -j DROP
+
+# drop icmp
+-A INPUT -p icmp -j DROP
+
+# drop ACK packets without established session
+-A INPUT -p tcp -m tcp --tcp-flags FIN,SYN,RST,ACK ACK -j DROP
+
+# ssh
+-A INPUT -p tcp -m tcp --dport {{SSH_PORT}} --tcp-flags FIN,SYN,RST,ACK SYN -m conntrack --ctstate NEW -j ACCEPT
+
+# automate tcp
+-A INPUT -p tcp -m tcp --tcp-flags FIN,SYN,RST,ACK SYN -m multiport --dports 80,443 -m conntrack --ctstate NEW -j ACCEPT
+
+# control tcp
+-A INPUT -p tcp -m tcp --tcp-flags FIN,SYN,RST,ACK SYN -m multiport --dports {{CONTROL_PORT}} -m conntrack --ctstate NEW -j ACCEPT
+
+# log denied
+-A INPUT -m limit --limit 1/sec --limit-burst 100 -j LOG --log-prefix "fw drop: "
+
+COMMIT

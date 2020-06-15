@@ -1,0 +1,23 @@
+[req]
+distinguished_name = req_distinguished_name
+req_extensions = v3_req
+
+[req_distinguished_name]
+countryName = {{SSL_INTERNAL_COUNTRY}}
+countryName_default = {{SSL_INTERNAL_COUNTRY}}
+stateOrProvinceName = {{SSL_INTERNAL_STATE}}
+stateOrProvinceName_default = {{SSL_INTERNAL_STATE}}
+localityName = {{SSL_INTERNAL_CITY}}
+localityName_default = {{SSL_INTERNAL_CITY}}
+organizationalUnitName = {{SSL_INTERNAL_COMPANY}}
+organizationalUnitName_default = {{SSL_INTERNAL_COMPANY}}
+commonName = *.{{SSL_DOMAIN}}
+commonName_max = 64
+
+[v3_req]
+basicConstraints = CA:FALSE
+keyUsage = nonRepudiation, digitalSignature, keyEncipherment
+subjectAltName = @alt_names
+
+[alt_names]
+DNS.1 = {{AUTOMATE_DOMAIN}}
