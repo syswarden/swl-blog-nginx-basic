@@ -24,7 +24,7 @@ declare -A SETTINGS=(
 
 # remove ufw
 
-ufw reset
+ufw reset --force
 ufw disable
 apt remove ufw -y
 
@@ -69,7 +69,7 @@ rsync -rvi $TEMPLATE_PATH/etc/ /etc/
 
 # generate external ssl cert
 
-certbot certonly -d "*.${SETTINGS[SSL_EXTERNAL_DOMAIN]}"
+certbot certonly --no-eff-email --agree-tos -n -d "*.${SETTINGS[SSL_DOMAIN]}"
 
 # generate internal ssl cert
 

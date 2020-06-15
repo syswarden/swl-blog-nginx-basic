@@ -12,8 +12,8 @@
 -A INPUT -d 224.0.0.0/4 -j DROP
 -A INPUT -p icmp -j DROP
 -A INPUT -p tcp -m tcp --tcp-flags FIN,SYN,RST,ACK ACK -j DROP
--A INPUT -p tcp -m tcp --dport {{SSH_PORT}} --tcp-flags FIN,SYN,RST,ACK SYN -m conntrack --ctstate NEW -j ACCEPT
+-A INPUT -p tcp -m tcp --dport {{ssh_port}} --tcp-flags FIN,SYN,RST,ACK SYN -m conntrack --ctstate NEW -j ACCEPT
 -A INPUT -p tcp -m tcp --tcp-flags FIN,SYN,RST,ACK SYN -m multiport --dports 80,443 -m conntrack --ctstate NEW -j ACCEPT
--A INPUT -p tcp -m tcp --tcp-flags FIN,SYN,RST,ACK SYN -m multiport --dports {{CONTROL_PORT}} -m conntrack --ctstate NEW -j ACCEPT
+-A INPUT -p tcp -m tcp --tcp-flags FIN,SYN,RST,ACK SYN -m multiport --dports {{control_port}} -m conntrack --ctstate NEW -j ACCEPT
 -A INPUT -m limit --limit 1/sec --limit-burst 100 -j LOG --log-prefix "fw drop: "
 COMMIT
