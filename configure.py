@@ -1,66 +1,42 @@
 import os
 import shutil
-import shlex
 import argparse
-import fileinput
-import platform
-import subprocess
 
 # option definitions
 
 class Option:
-    def __init__(self, name, help, default, switch, replace):
+    def __init__(self, name):
         self.name = name
         self.help = help
-        self.default = default
-        self.switch = switch
-        self.replace = replace
-        self.arg_name = '--{}'.format(name.replace('_','-'))
-        self.replace_name = '{{{{{}}}}}'.format(name)
+        self.arg = '--{}'.format(name.replace('_','-'))
+        self.replace = '{{{{{}}}}}'.format(name)
 
 options = [
-    Option('ssh_port', '', '22', False, True),
-    Option('control_port', '', '8040', False, True),
-    Option('automate_ip', 'automate internal ip', '10.1.1.1', False, True),
-    Option('whitelist_ip', 'external whitelist ip', '1.1.1.1', False, True),
-    Option('ssl_domain', 'syswarden.com', 'syswarden.com', False, True),
-    Option('site_domain', 'example.syswarden.com', 'example.syswarden.com', False, True),
-    Option('notify_email', 'ssl cert notification', 'example@syswarden.com', False, True),
-    Option('cloudflare_email', 'example@syswarden.com', 'example@syswarden.com', False, True),
-    Option('cloudflare_apikey', 'aAbBcCdDeEfFgGhHiIjJkKlLmMnNoOpP', 'aAbBcCdDeEfFgGhHiIjJkKlLmMnNoOpP', False, True),
-    Option('apply_all', 'applies everything, overrides any individual options', None, True, False),
-    Option('apply_nginx', 'installs and configures nginx', None, True, False),
-    Option('skip_dhparam', 'skips dhparam generation while applying nginx configs', None, None, False),
-    Option('apply_iptables', 'applies persistent iptable configs and removes ufw', None, True, False),
-    Option('apply_external_ssl', 'installs letsencrypt certbot and generates a wildcard certificate', None, True, False),
-    Option('apply_internal_ssl', 'generates an internal certificate for the automate server', None, True, False)
+    Option('ssh_port'),
+    Option('control_port'),
+    Option('automate_ip'),
+    Option('whitelist_ip'),
+    Option('ssl_domain'),
+    Option('site_domain'),
+    Option('notify_email'),
+    Option('cloudflare_email'),
+    Option('cloudflare_apikey'),
 ]
-
-aptenv = {
-    'DEBIAN_FRONTEND':'noninteractive', 
-    'ACCEPT_EULA':'Y'
-}
 
 # helper functions
 
 def get_input_args():
     parser = argparse.ArgumentParser()
     for option in options:
-        if option.switch:
-            parser.add_argument(option.arg_name, help=option.help, action='store_true')
-        else:
-            parser.add_argument(option.arg_name, help=option.help, default=option.default)
-    group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument('--create-config', action='store_true')
-    group.add_argument('--apply-config', action='store_true')
+        parser.add_argument(option.arg, required=True)
     return parser.parse_args()
 
 def get_replace_args(args):
     rargs = dict()
     dargs = vars(args)
     for option in options:
-        if option.replace:
-            rargs[option.replace_name] = '' if dargs[option.name] is None else dargs[option.name]
+        option_value = '' if dargs[option.name] is None else dargs[option.name]
+        rargs[option.replace] = option_value
     return rargs
 
 def get_file_paths(srcpath):
@@ -84,34 +60,8 @@ def replace_in_file(filepath, kvp):
         filedata = file.read()
     for key, value in kvp.items():
         filedata = filedata.replace(key, value)
-    with open(filepath, 'w') as file:       
+    with open(filepath, 'w') as file:
         file.write(filedata)
-
-def shell_execute(command, env=None):
-    cenv = os.environ
-    if not env is None:
-        cenv = { **os.environ, **env }
-    cargs = shlex.split(command)
-    subprocess.Popen(cargs, env=cenv)
-
-# application functions
-
-def apply_iptables(genpath):
-    iptables_path = os.path.join(genpath, 'etc/iptables/')
-    shell_execute('ufw reset --force')
-    shell_execute('ufw disable')
-    shell_execute('apt remove ufw -y', aptenv )
-    shell_execute('apt install iptables-persistent -y', aptenv )
-    shell_execute('rsync -rvi "{}" /etc/iptables/'.format(iptables_path))
-    
-def apply_external_ssl(genpath):
-    print('apply_external_ssl')
-
-def apply_internal_ssl(genpath):
-    print('apply_internal_ssl')
-
-def apply_nginx(genpath):
-    print('apply_nginx')
 
 # setup variables
 
@@ -121,28 +71,20 @@ basepath = os.path.dirname(os.path.realpath(__file__))
 tmppath = os.path.join(basepath, 'templates')
 genpath = os.path.join(basepath, 'generated')
 
-# config creation
+# fail if no templates are found
 
-if args.create_config:
-    if not os.path.exists(tmppath):
-        raise Exception('template configs not found: {}'.format(tmppath))
-    clone_source_path(tmppath, genpath)
-    filepaths = get_file_paths(genpath)
-    for filepath in filepaths:
-        replace_in_file(filepath, rargs)
+if not os.path.exists(tmppath):
+    raise Exception('template configs not found: {}'.format(tmppath))
 
-# config application
+# remove previous generated folder and clone templates
 
-if args.apply_config:
-    if not platform.system() == 'Linux':
-        raise Exception('this tool can only apply configs on ubuntu')
-    if not os.path.exists(genpath):
-        raise Exception('generated configs not found: {}'.format(genpath))
-    if args.apply_iptables or args.apply_all:
-        apply_iptables(genpath)
-    if args.apply_external_ssl or args.apply_all:
-        apply_external_ssl(genpath)
-    if args.apply_internal_ssl or args.apply_all:
-        apply_internal_ssl(genpath)
-    if args.apply_nginx or args.apply_all:
-        apply_nginx(genpath)
+clone_source_path(tmppath, genpath)
+
+# get the file paths for the cloned template files
+
+filepaths = get_file_paths(genpath)
+
+# replace the variables in the files
+
+for filepath in filepaths:
+    replace_in_file(filepath, rargs)
